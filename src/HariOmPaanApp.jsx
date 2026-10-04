@@ -12,7 +12,7 @@ const NAV_LINKS = [
 const PRODUCTS = [
   {
     id: "moti",
-    name: "Juna Moti Supari",
+    name: "Juni Moti Supari",
     gujaratiName: "જૂની મોટી સોપારી",
     localName:
       "જૂની મોટી સોપારી - Large, aged whole betel nuts known for their robust flavor, rich aroma, and premium texture.",
@@ -20,7 +20,7 @@ const PRODUCTS = [
     price: "₹800",
     badge: { label: "Premium", className: "bg-tertiary text-on-tertiary" },
     image: "/images/moti.jpg",
-    alt: "Premium Juna Moti whole betel nuts on a clean background.",
+    alt: "Premium Juni Moti whole betel nuts on a clean background.",
   },
   {
     id: "moro",
@@ -763,10 +763,10 @@ function HeroSection({ onOpenOrder }) {
           {/* Body Paragraph */}
           <p className="text-base sm:text-lg text-on-surface-variant max-w-2xl leading-relaxed">
             Direct wholesale suppliers of Gujarat&apos;s finest aged betel nuts —{" "}
-            <strong className="text-primary font-semibold">Juna Moti</strong>,{" "}
+            <strong className="text-primary font-semibold">Juni Moti</strong>,{" "}
             <strong className="text-primary font-semibold">Juni Moro</strong>, and{" "}
             <strong className="text-primary font-semibold">Juni Sekal</strong>.
-            Available in whole nuts, precision sancha (machine) cutting, and traditional sarota
+            Available in whole nuts, precision machine cutting, and traditional sarota
             cutting tailored for paan shops across Gujarat.
           </p>
 
