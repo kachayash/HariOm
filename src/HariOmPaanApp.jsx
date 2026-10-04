@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const WHATSAPP_NUMBER = "919104830377"; // Kano
 
@@ -139,6 +139,26 @@ function WhatsAppOrderModal({
   });
   const [specialNotes, setSpecialNotes] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [errorTarget, setErrorTarget] = useState(null); // "name" | "phone" | "products"
+
+  const formRef = useRef(null);
+  const nameInputRef = useRef(null);
+  const phoneInputRef = useRef(null);
+  const productsSectionRef = useRef(null);
+
+  const scrollToField = (target) => {
+    if (target === "phone" && phoneInputRef.current) {
+      phoneInputRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      phoneInputRef.current.focus();
+    } else if (target === "name" && nameInputRef.current) {
+      nameInputRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      nameInputRef.current.focus();
+    } else if (target === "products" && productsSectionRef.current) {
+      productsSectionRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
 
   // Handle escape key and body scroll lock
   useEffect(() => {
@@ -192,6 +212,7 @@ function WhatsAppOrderModal({
   }
 
   const calculatedSupariPrice = hasSupari ? Math.round(pricePerKg * weightInKg) : 0;
+  const cleanDigits = mobileNumber.replace(/\D/g, "");
 
   const cuttingLabels = {
     machine: "Machine Cut / Sancha Cutting (સંચા કટિંગ)",
@@ -254,25 +275,51 @@ function WhatsAppOrderModal({
   const handleSendToWhatsApp = (e) => {
     e.preventDefault();
 
+    // Reset previous errors
+    setNameError("");
+    setPhoneError("");
+
     if (!customerName.trim()) {
-      setErrorMessage("Please enter your name (તમારું નામ દાખલ કરો).");
+      const msg = "Please enter your full name (કૃપા કરીને તમારું નામ દાખલ કરો).";
+      setNameError(msg);
+      setErrorMessage(msg);
+      setErrorTarget("name");
+      setTimeout(() => {
+        scrollToField("name");
+      }, 50);
       return;
     }
 
     const cleanPhone = mobileNumber.replace(/\D/g, "");
-    if (!cleanPhone || cleanPhone.length < 10) {
-      setErrorMessage("Please enter a valid 10-digit mobile number (મોબાઈલ નંબર ચકાસો).");
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      const countMsg =
+        cleanPhone.length === 0
+          ? "Please enter your 10-digit mobile number (મોબાઈલ નંબર દાખલ કરો)."
+          : `Mobile number must be exactly 10 digits. You entered ${cleanPhone.length} digit${cleanPhone.length === 1 ? "" : "s"} (૧૦ અંકનો સાચો નંબર લખો - અત્યારે ${cleanPhone.length} અંક છે).`;
+      setPhoneError(countMsg);
+      setErrorMessage(countMsg);
+      setErrorTarget("phone");
+      setTimeout(() => {
+        scrollToField("phone");
+      }, 50);
       return;
     }
 
     if (!hasSupari && selectedSuppliesList.length === 0) {
-      setErrorMessage(
-        "Please select at least one Supari product or Paan Supply item (સોપારી અથવા સામગ્રી પસંદ કરો)."
-      );
+      const msg =
+        "Please select at least one Supari product or Paan Supply item (સોપારી અથવા સામગ્રી પસંદ કરો).";
+      setErrorMessage(msg);
+      setErrorTarget("products");
+      setTimeout(() => {
+        scrollToField("products");
+      }, 50);
       return;
     }
 
     setErrorMessage("");
+    setNameError("");
+    setPhoneError("");
+    setErrorTarget(null);
 
     const messageLines = [
       "🛒 *NEW ORDER / PRICE INQUIRY*",
@@ -347,11 +394,26 @@ function WhatsAppOrderModal({
         </div>
 
         {/* Modal Body / Form */}
-        <form onSubmit={handleSendToWhatsApp} className="p-4 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+        <form
+          ref={formRef}
+          noValidate
+          onSubmit={handleSendToWhatsApp}
+          className="p-4 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto"
+        >
           {errorMessage && (
-            <div className="bg-red-50 border border-red-300 text-red-700 px-3.5 py-2.5 rounded-lg text-xs sm:text-sm flex items-center gap-2">
-              <span className="material-symbols-outlined text-red-600 text-lg">error</span>
-              <span>{errorMessage}</span>
+            <div
+              onClick={() => scrollToField(errorTarget)}
+              className="bg-red-50 border border-red-300 text-red-700 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-between gap-2 animate-shake cursor-pointer shadow-xs transition-all hover:bg-red-100/70"
+            >
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-red-600 text-lg shrink-0">error</span>
+                <span className="font-semibold">{errorMessage}</span>
+              </div>
+              {errorTarget && (
+                <span className="text-[11px] font-bold text-red-600 underline shrink-0 whitespace-nowrap">
+                  Click to fix ↑
+                </span>
+              )}
             </div>
           )}
 
@@ -367,43 +429,105 @@ function WhatsAppOrderModal({
                   Full Name / નામ <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant/60 text-lg">
+                  <span
+                    className={`material-symbols-outlined absolute left-3 top-2.5 text-lg transition-colors ${
+                      nameError ? "text-red-500" : "text-on-surface-variant/60"
+                    }`}
+                  >
                     person
                   </span>
                   <input
+                    ref={nameInputRef}
                     type="text"
-                    required
                     placeholder="e.g. Rajeshbhai Patel"
                     value={customerName}
                     onChange={(e) => {
                       setCustomerName(e.target.value);
-                      if (errorMessage) setErrorMessage("");
+                      if (nameError) setNameError("");
+                      if (errorMessage && errorTarget === "name") setErrorMessage("");
                     }}
-                    className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface focus:outline-hidden focus:border-secondary focus:ring-1 focus:ring-secondary"
+                    className={`w-full bg-surface-container-low border rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface focus:outline-hidden transition-all ${
+                      nameError
+                        ? "border-red-500 ring-2 ring-red-500/30 bg-red-50/20 animate-shake"
+                        : "border-outline-variant/50 focus:border-secondary focus:ring-1 focus:ring-secondary"
+                    }`}
                   />
                 </div>
+                {nameError && (
+                  <p className="text-red-600 text-[11px] font-semibold flex items-center gap-1 mt-1">
+                    <span className="material-symbols-outlined text-sm">error</span>
+                    {nameError}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-on-surface-variant mb-1">
-                  Mobile / WhatsApp Number <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-on-surface-variant">
+                    Mobile / WhatsApp Number <span className="text-red-500">*</span>
+                  </label>
+                  {/* Live digit counter feedback */}
+                  <span
+                    className={`text-[11px] font-bold px-1.5 py-0.5 rounded transition-all ${
+                      cleanDigits.length === 10
+                        ? "text-green-700 bg-green-100"
+                        : cleanDigits.length > 10
+                        ? "text-red-700 bg-red-100"
+                        : cleanDigits.length > 0
+                        ? "text-amber-800 bg-amber-100"
+                        : "text-on-surface-variant/60"
+                    }`}
+                  >
+                    {cleanDigits.length === 0
+                      ? "10 digits"
+                      : cleanDigits.length === 10
+                      ? "✓ 10 digits"
+                      : `${cleanDigits.length}/10 digits`}
+                  </span>
+                </div>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant/60 text-lg">
+                  <span
+                    className={`material-symbols-outlined absolute left-3 top-2.5 text-lg transition-colors ${
+                      phoneError ? "text-red-500" : "text-on-surface-variant/60"
+                    }`}
+                  >
                     call
                   </span>
                   <input
+                    ref={phoneInputRef}
                     type="tel"
-                    required
+                    maxLength={14}
                     placeholder="e.g. 98793 33913"
                     value={mobileNumber}
                     onChange={(e) => {
-                      setMobileNumber(e.target.value);
-                      if (errorMessage) setErrorMessage("");
+                      const val = e.target.value;
+                      setMobileNumber(val);
+                      const currentClean = val.replace(/\D/g, "");
+                      if (currentClean.length === 10) {
+                        setPhoneError("");
+                        if (errorTarget === "phone") setErrorMessage("");
+                      } else if (phoneError) {
+                        setPhoneError(`Entered ${currentClean.length}/10 digits (૧૦ અંક પૂરા કરો)`);
+                      }
                     }}
-                    className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface focus:outline-hidden focus:border-secondary focus:ring-1 focus:ring-secondary"
+                    className={`w-full bg-surface-container-low border rounded-lg pl-9 pr-3 py-2 text-sm text-on-surface focus:outline-hidden transition-all ${
+                      phoneError
+                        ? "border-red-500 ring-2 ring-red-500/30 bg-red-50/20 animate-shake"
+                        : "border-outline-variant/50 focus:border-secondary focus:ring-1 focus:ring-secondary"
+                    }`}
                   />
                 </div>
+                {phoneError ? (
+                  <p className="text-red-600 text-[11px] font-semibold flex items-center gap-1 mt-1">
+                    <span className="material-symbols-outlined text-sm">error</span>
+                    {phoneError}
+                  </p>
+                ) : cleanDigits.length > 0 && cleanDigits.length < 10 ? (
+                  <p className="text-amber-700 text-[11px] font-medium flex items-center gap-1 mt-1">
+                    <span className="material-symbols-outlined text-xs">info</span>
+                    Need {10 - cleanDigits.length} more digit{10 - cleanDigits.length === 1 ? "" : "s"} ({10 - cleanDigits.length} અંક બાકી છે)
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -427,7 +551,7 @@ function WhatsAppOrderModal({
           </div>
 
           {/* Section 2: Choose Product */}
-          <div className="space-y-2 pt-1 border-t border-outline-variant/20">
+          <div ref={productsSectionRef} className="space-y-2 pt-1 border-t border-outline-variant/20">
             <div className="flex items-center justify-between pt-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-base text-secondary">inventory_2</span>
@@ -867,6 +991,42 @@ function WhatsAppOrderModal({
               * Wholesale rates directly from Rajkot Mandi. Final stock confirmation &amp; transport details on WhatsApp.
             </p>
           </div>
+
+          {/* Bottom Error Banner: Immediately visible when user clicks submit at the bottom */}
+          {errorMessage && (
+            <div
+              onClick={() => scrollToField(errorTarget)}
+              className="bg-red-500/10 border-2 border-red-500 text-red-700 dark:text-red-400 p-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer animate-shake shadow-xs hover:bg-red-500/15 transition-all"
+              role="alert"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="material-symbols-outlined text-red-600 text-2xl shrink-0">error</span>
+                <div className="min-w-0">
+                  <div className="font-bold text-xs sm:text-sm text-red-700 leading-tight">
+                    {errorMessage}
+                  </div>
+                  <div className="text-[11px] text-red-600 font-medium mt-0.5">
+                    {errorTarget === "phone"
+                      ? "Tap here to correct mobile number (નંબર સુધારવા અહીં ક્લિક કરો)"
+                      : errorTarget === "name"
+                      ? "Tap here to enter your name (નામ દાખલ કરવા અહીં ક્લિક કરો)"
+                      : "Tap here to choose products (સોપારી પસંદ કરવા અહીં ક્લિક કરો)"}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  scrollToField(errorTarget);
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shrink-0 flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+              >
+                <span>Fix Now</span>
+                <span className="material-symbols-outlined text-sm">arrow_upward</span>
+              </button>
+            </div>
+          )}
 
           {/* Submit Button */}
           <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
