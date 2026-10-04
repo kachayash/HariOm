@@ -48,21 +48,61 @@ const PRODUCTS = [
   },
 ];
 
-const INVENTORY_ITEMS = [
+const PAAN_SUPPLIES = [
   {
-    icon: "smoking_rooms",
-    title: "Premium 138 Tobacco",
+    id: "tobacco-138",
+    title: "138 Tobacco",
+    gujaratiTitle: "૧૩૮ તમાકુ (138 Tobacco)",
     subtitle: "Available With / Without Work (કામવાળું / વગર કામનું)",
+    price: 350,
+    unit: "pkt",
+    unitLabel: "packet (પેકેટ)",
+    icon: "smoking_rooms",
+    badge: "₹350",
   },
   {
-    icon: "science",
+    id: "chuna",
     title: "Limestone (Chuna)",
+    gujaratiTitle: "ચૂનો (Edible Chuna)",
     subtitle: "High-grade edible quality chuna for paan shops",
+    price: 40,
+    unit: "dabi",
+    unitLabel: "dabi / pc (ડબ્બી)",
+    icon: "science",
+    badge: "₹40",
   },
   {
+    id: "plastic-50",
+    title: "Plastic Bags - Type 1",
+    gujaratiTitle: "પ્લાસ્ટિક થેલી - ટાઇપ ૧",
+    subtitle: "Heavy quality plastic packaging bags (50 Rs)",
+    price: 50,
+    unit: "pkt",
+    unitLabel: "packet (પેકેટ)",
     icon: "shopping_bag",
-    title: "Packaging Materials",
-    subtitle: "Plastic pouch bags, rubber bands & shop supplies",
+    badge: "₹50",
+  },
+  {
+    id: "plastic-40",
+    title: "Plastic Bags - Type 2",
+    gujaratiTitle: "પ્લાસ્ટિક થેલી - ટાઇપ ૨",
+    subtitle: "Standard regular packaging plastic bags (40 Rs)",
+    price: 40,
+    unit: "pkt",
+    unitLabel: "packet (પેકેટ)",
+    icon: "shopping_bag",
+    badge: "₹40",
+  },
+  {
+    id: "rubber",
+    title: "Rubber Bands",
+    gujaratiTitle: "રબર બેન્ડ (Rubber)",
+    subtitle: "High stretch elastic rubber bands for paan packing",
+    price: 20,
+    unit: "pkt",
+    unitLabel: "packet (પેકેટ)",
+    icon: "all_inclusive",
+    badge: "₹20",
   },
 ];
 
@@ -74,17 +114,29 @@ const CONTACTS = [
 // ------------------------------------------------------------------
 // WhatsApp Order & Automatic Price Calculation Modal
 // ------------------------------------------------------------------
-function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
+function WhatsAppOrderModal({
+  isOpen,
+  onClose,
+  initialProduct = null,
+  initialSupplyId = null,
+}) {
   const [customerName, setCustomerName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [city, setCity] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState(
-    initialProduct?.id || PRODUCTS[0].id
-  );
+  const [selectedProductId, setSelectedProductId] = useState(() => {
+    if (initialProduct?.id) return initialProduct.id;
+    if (initialProduct === "none" || initialSupplyId) return "none";
+    return PRODUCTS[0].id;
+  });
   const [weightOption, setWeightOption] = useState("1kg"); // "250gm", "500gm", "1kg", "2kg", "5kg", "custom"
   const [customKg, setCustomKg] = useState("10");
   const [cuttingType, setCuttingType] = useState("machine"); // "machine", "sarota", "whole"
-  const [selectedSupplies, setSelectedSupplies] = useState([]);
+  const [suppliesQty, setSuppliesQty] = useState(() => {
+    if (initialSupplyId) {
+      return { [initialSupplyId]: 1 };
+    }
+    return {};
+  });
   const [specialNotes, setSpecialNotes] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -108,9 +160,11 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
 
   if (!isOpen) return null;
 
-  const currentProduct =
-    PRODUCTS.find((p) => p.id === selectedProductId) || PRODUCTS[0];
-  const pricePerKg = currentProduct.pricePerKg;
+  const hasSupari = selectedProductId !== "none";
+  const currentProduct = hasSupari
+    ? PRODUCTS.find((p) => p.id === selectedProductId) || PRODUCTS[0]
+    : null;
+  const pricePerKg = currentProduct ? currentProduct.pricePerKg : 0;
 
   // Calculate weight and price based on selected unit / kg
   let weightInKg = 1;
@@ -137,7 +191,7 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
     weightLabel = `${weightInKg} kg`;
   }
 
-  const calculatedTotalPrice = Math.round(pricePerKg * weightInKg);
+  const calculatedSupariPrice = hasSupari ? Math.round(pricePerKg * weightInKg) : 0;
 
   const cuttingLabels = {
     machine: "Machine Cut / Sancha Cutting (સંચા કટિંગ)",
@@ -145,13 +199,57 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
     whole: "Whole Supari (આખી સોપારી)",
   };
 
-  const handleSupplyToggle = (itemTitle) => {
-    setSelectedSupplies((prev) =>
-      prev.includes(itemTitle)
-        ? prev.filter((title) => title !== itemTitle)
-        : [...prev, itemTitle]
-    );
+  const handleToggleSupply = (supplyId) => {
+    setSuppliesQty((prev) => {
+      const next = { ...prev };
+      if (next[supplyId] > 0) {
+        delete next[supplyId];
+      } else {
+        next[supplyId] = 1;
+      }
+      return next;
+    });
   };
+
+  const handleQtyChange = (supplyId, newQty) => {
+    setSuppliesQty((prev) => {
+      const next = { ...prev };
+      if (newQty <= 0) {
+        delete next[supplyId];
+      } else {
+        next[supplyId] = Math.min(999, Math.max(1, newQty));
+      }
+      return next;
+    });
+  };
+
+  const handleQtyInput = (supplyId, rawVal) => {
+    const parsed = parseInt(rawVal, 10);
+    setSuppliesQty((prev) => {
+      const next = { ...prev };
+      if (isNaN(parsed) || parsed <= 0) {
+        next[supplyId] = 1;
+      } else {
+        next[supplyId] = Math.min(999, parsed);
+      }
+      return next;
+    });
+  };
+
+  const selectedSuppliesList = PAAN_SUPPLIES.filter(
+    (s) => (suppliesQty[s.id] || 0) > 0
+  ).map((s) => ({
+    ...s,
+    qty: suppliesQty[s.id],
+    itemTotal: suppliesQty[s.id] * s.price,
+  }));
+
+  const suppliesTotalPrice = selectedSuppliesList.reduce(
+    (sum, item) => sum + item.itemTotal,
+    0
+  );
+
+  const finalGrandTotal = calculatedSupariPrice + suppliesTotalPrice;
 
   const handleSendToWhatsApp = (e) => {
     e.preventDefault();
@@ -167,6 +265,13 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
       return;
     }
 
+    if (!hasSupari && selectedSuppliesList.length === 0) {
+      setErrorMessage(
+        "Please select at least one Supari product or Paan Supply item (સોપારી અથવા સામગ્રી પસંદ કરો)."
+      );
+      return;
+    }
+
     setErrorMessage("");
 
     const messageLines = [
@@ -176,17 +281,27 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
       `👤 *Customer Name:* ${customerName.trim()}`,
       `📱 *Mobile Number:* ${mobileNumber.trim()}`,
       city.trim() ? `📍 *City / Area:* ${city.trim()}` : null,
-      "",
-      `📦 *Selected Product:* ${currentProduct.name} (${currentProduct.gujaratiName})`,
-      `⚖️ *Selected Weight:* ${weightLabel}`,
-      `💰 *Base Rate:* ₹${pricePerKg} / kg`,
-      `💵 *Estimated Total Price:* ₹${calculatedTotalPrice.toLocaleString("en-IN")}`,
-      `✂️ *Cutting Preference:* ${cuttingLabels[cuttingType]}`,
-      selectedSupplies.length > 0
-        ? `➕ *Extra Supplies:* ${selectedSupplies.join(", ")}`
-        : null,
-      specialNotes.trim() ? `📝 *Notes:* ${specialNotes.trim()}` : null,
       "━━━━━━━━━━━━━━━━━━━━━━━━",
+      hasSupari ? "📦 *SUPARI ORDER:*" : null,
+      hasSupari ? `• Product: ${currentProduct.name} (${currentProduct.gujaratiName})` : null,
+      hasSupari ? `• Selected Weight: ${weightLabel}` : null,
+      hasSupari ? `• Base Rate: ₹${pricePerKg} / kg` : null,
+      hasSupari ? `• Cutting: ${cuttingLabels[cuttingType]}` : null,
+      hasSupari ? `• Supari Subtotal: ₹${calculatedSupariPrice.toLocaleString("en-IN")}` : null,
+      hasSupari && selectedSuppliesList.length > 0 ? "────────────────────────" : null,
+      selectedSuppliesList.length > 0 ? "🌿 *PAAN SUPPLIES (અન્ય સામગ્રી):*" : null,
+      ...selectedSuppliesList.map(
+        (s) =>
+          `• ${s.title} (${s.gujaratiTitle}): ${s.qty} × ₹${s.price} = ₹${s.itemTotal.toLocaleString("en-IN")}`
+      ),
+      selectedSuppliesList.length > 0
+        ? `• Supplies Subtotal: ₹${suppliesTotalPrice.toLocaleString("en-IN")}`
+        : null,
+      "━━━━━━━━━━━━━━━━━━━━━━━━",
+      `💰 *FINAL ORDER TOTAL: ₹${finalGrandTotal.toLocaleString("en-IN")}*`,
+      "━━━━━━━━━━━━━━━━━━━━━━━━",
+      specialNotes.trim() ? `📝 *Notes:* ${specialNotes.trim()}` : null,
+      specialNotes.trim() ? "━━━━━━━━━━━━━━━━━━━━━━━━" : null,
       "Please confirm stock availability and delivery schedule.",
     ]
       .filter(Boolean)
@@ -217,7 +332,7 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
                 Quick Order &amp; Price Calculator
               </h3>
               <p className="text-xs text-tertiary-container">
-                ઓર્ડર ફોર્મ • ભાવ અને વજન ગણતરી
+                ઓર્ડર ફોર્મ • સોપારી અને અન્ય સામગ્રી ગણતરી
               </p>
             </div>
           </div>
@@ -313,11 +428,27 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
 
           {/* Section 2: Choose Product */}
           <div className="space-y-2 pt-1 border-t border-outline-variant/20">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 pt-2">
-              <span className="material-symbols-outlined text-base text-secondary">inventory_2</span>
-              2. Select Supari Product (સોપારી પસંદ કરો)
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="flex items-center justify-between pt-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-base text-secondary">inventory_2</span>
+                2. Select Supari Product (સોપારી પસંદ કરો)
+              </h4>
+              {hasSupari ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedProductId("none")}
+                  className="text-[11px] text-tertiary hover:underline font-semibold cursor-pointer"
+                >
+                  Skip Supari (સોપારી વગર)
+                </button>
+              ) : (
+                <span className="text-[11px] bg-secondary/10 text-secondary font-bold px-2 py-0.5 rounded-full">
+                  Only Supplies
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {PRODUCTS.map((prod) => {
                 const isSelected = prod.id === selectedProductId;
                 return (
@@ -325,7 +456,7 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
                     key={prod.id}
                     type="button"
                     onClick={() => setSelectedProductId(prod.id)}
-                    className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer flex sm:flex-col items-center sm:items-start gap-2.5 ${
+                    className={`text-left p-2 rounded-xl border transition-all cursor-pointer flex flex-col items-start gap-1.5 ${
                       isSelected
                         ? "bg-secondary-container/30 border-secondary ring-1 ring-secondary shadow-xs"
                         : "bg-surface-container-low border-outline-variant/40 hover:bg-surface-container-high"
@@ -334,11 +465,11 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
                     <img
                       src={prod.image}
                       alt={prod.name}
-                      className="w-12 h-12 sm:w-full sm:h-20 rounded-lg object-cover shrink-0"
+                      className="w-full h-14 sm:h-16 rounded-lg object-cover"
                     />
-                    <div className="flex-1 min-w-0">
+                    <div className="w-full">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs sm:text-sm text-primary truncate block">
+                        <span className="font-bold text-xs text-primary truncate block">
                           {prod.name}
                         </span>
                         {isSelected && (
@@ -350,7 +481,7 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
                           </span>
                         )}
                       </div>
-                      <span className="text-[11px] text-tertiary block font-medium">
+                      <span className="text-[10px] text-tertiary block font-medium truncate">
                         {prod.gujaratiName}
                       </span>
                       <span className="font-bold text-xs text-secondary mt-0.5 block">
@@ -360,155 +491,276 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
                   </button>
                 );
               })}
+
+              {/* No Supari Card Option */}
+              <button
+                type="button"
+                onClick={() => setSelectedProductId("none")}
+                className={`text-center p-2 rounded-xl border transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                  selectedProductId === "none"
+                    ? "bg-primary text-white border-primary ring-1 ring-primary shadow-xs"
+                    : "bg-surface-container-low border-outline-variant/40 hover:bg-surface-container-high text-on-surface"
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    selectedProductId === "none" ? "bg-white/20 text-white" : "bg-surface-container-high text-on-surface-variant"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl">block</span>
+                </div>
+                <div>
+                  <span className="font-bold text-xs block leading-tight">No Supari</span>
+                  <span
+                    className={`text-[10px] block mt-0.5 ${
+                      selectedProductId === "none" ? "text-white/80" : "text-on-surface-variant"
+                    }`}
+                  >
+                    સોપારી નથી જોઈતી
+                  </span>
+                </div>
+              </button>
             </div>
           </div>
 
-          {/* Section 3: Select Weight / Quantity */}
-          <div className="space-y-2 pt-1 border-t border-outline-variant/20">
+          {/* Section 3: Select Weight / Quantity (Only if Supari is selected) */}
+          {hasSupari && (
+            <div className="space-y-2 pt-1 border-t border-outline-variant/20">
+              <div className="flex items-center justify-between pt-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-base text-secondary">scale</span>
+                  3. Select Supari Weight (કેટલા કિલો જોઈએ?)
+                </h4>
+                <span className="text-xs font-semibold text-secondary">
+                  Selected: {weightLabel}
+                </span>
+              </div>
+
+              {/* Quick Weight Chips */}
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {[
+                  { id: "250gm", label: "250 gm", sub: "0.25 kg" },
+                  { id: "500gm", label: "500 gm", sub: "0.50 kg" },
+                  { id: "1kg", label: "1 kg", sub: "Standard" },
+                  { id: "2kg", label: "2 kg", sub: "Pack" },
+                  { id: "5kg", label: "5 kg", sub: "Wholesale" },
+                  { id: "custom", label: "Custom", sub: "Other kg" },
+                ].map((chip) => {
+                  const isActive = weightOption === chip.id;
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      onClick={() => setWeightOption(chip.id)}
+                      className={`py-2 px-1.5 rounded-lg border text-center transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-primary text-on-primary border-primary shadow-xs font-bold"
+                          : "bg-surface-container-low border-outline-variant/40 hover:bg-surface-container-high text-on-surface"
+                      }`}
+                    >
+                      <span className="block text-xs font-bold">{chip.label}</span>
+                      <span
+                        className={`block text-[10px] ${
+                          isActive ? "text-on-primary/70" : "text-on-surface-variant/70"
+                        }`}
+                      >
+                        {chip.sub}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Weight Stepper/Input */}
+              {weightOption === "custom" && (
+                <div className="mt-2.5 p-3 rounded-lg bg-surface-container-low border border-outline-variant/50 flex items-center justify-between gap-3">
+                  <div className="text-xs font-medium text-on-surface">
+                    Enter Custom Weight (કિલો):
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = parseFloat(customKg) || 1;
+                        setCustomKg(String(Math.max(1, cur - 1)));
+                      }}
+                      className="w-8 h-8 rounded-md bg-surface-container-high hover:bg-surface-container-highest font-bold text-sm flex items-center justify-center cursor-pointer border border-outline-variant/40"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min="0.5"
+                      step="0.5"
+                      value={customKg}
+                      onChange={(e) => setCustomKg(e.target.value)}
+                      className="w-20 bg-surface border border-outline-variant/60 rounded-md py-1 px-2 text-center text-sm font-bold text-primary focus:outline-hidden"
+                    />
+                    <span className="text-xs font-semibold text-on-surface-variant">kg</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = parseFloat(customKg) || 1;
+                        setCustomKg(String(cur + 1));
+                      }}
+                      className="w-8 h-8 rounded-md bg-surface-container-high hover:bg-surface-container-highest font-bold text-sm flex items-center justify-center cursor-pointer border border-outline-variant/40"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Section 4: Cutting Preference (Only if Supari is selected) */}
+          {hasSupari && (
+            <div className="space-y-2 pt-1 border-t border-outline-variant/20">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 pt-2">
+                <span className="material-symbols-outlined text-base text-secondary">content_cut</span>
+                4. Cutting Preference (કટિંગ પસંદગી)
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { id: "machine", label: "Machine Cut (મશીન)", icon: "precision_manufacturing" },
+                  { id: "sarota", label: "Suda Cut (સૂડી)", icon: "content_cut" },
+                  { id: "whole", label: "Whole nuts (આખી સોપારી)", icon: "circle" },
+                ].map((cut) => {
+                  const isActive = cuttingType === cut.id;
+                  return (
+                    <button
+                      key={cut.id}
+                      type="button"
+                      onClick={() => setCuttingType(cut.id)}
+                      className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-secondary/10 border-secondary text-secondary font-bold ring-1 ring-secondary"
+                          : "bg-surface-container-low border-outline-variant/40 text-on-surface hover:bg-surface-container-high"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-lg">{cut.icon}</span>
+                      <span className="text-xs font-semibold">{cut.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Section 5: Paan Supplies with Quantity and Live Price Calculation */}
+          <div className="space-y-3 pt-1 border-t border-outline-variant/20">
             <div className="flex items-center justify-between pt-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-base text-secondary">scale</span>
-                3. Select Weight / Quantity (કેટલા કિલો જોઈએ?)
+                <span className="material-symbols-outlined text-base text-secondary">add_shopping_cart</span>
+                {hasSupari ? "5. Also Need Paan Supplies? (અન્ય સામગ્રી)" : "Paan Supplies Selection (અન્ય સામગ્રી)"}
               </h4>
               <span className="text-xs font-semibold text-secondary">
-                Selected: {weightLabel}
+                {selectedSuppliesList.length > 0 ? `${selectedSuppliesList.length} Selected` : "Optional"}
               </span>
             </div>
 
-            {/* Quick Weight Chips */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {[
-                { id: "250gm", label: "250 gm", sub: "0.25 kg" },
-                { id: "500gm", label: "500 gm", sub: "0.50 kg" },
-                { id: "1kg", label: "1 kg", sub: "Standard" },
-                { id: "2kg", label: "2 kg", sub: "Pack" },
-                { id: "5kg", label: "5 kg", sub: "Wholesale" },
-                { id: "custom", label: "Custom", sub: "Other kg" },
-              ].map((chip) => {
-                const isActive = weightOption === chip.id;
+            <div className="space-y-2.5">
+              {PAAN_SUPPLIES.map((supply) => {
+                const qty = suppliesQty[supply.id] || 0;
+                const isSelected = qty > 0;
+                const itemSubtotal = qty * supply.price;
+
                 return (
-                  <button
-                    key={chip.id}
-                    type="button"
-                    onClick={() => setWeightOption(chip.id)}
-                    className={`py-2 px-1.5 rounded-lg border text-center transition-all cursor-pointer ${
-                      isActive
-                        ? "bg-primary text-on-primary border-primary shadow-xs font-bold"
-                        : "bg-surface-container-low border-outline-variant/40 hover:bg-surface-container-high text-on-surface"
+                  <div
+                    key={supply.id}
+                    className={`p-3 rounded-xl border transition-all ${
+                      isSelected
+                        ? "bg-secondary-container/20 border-secondary ring-1 ring-secondary/50 shadow-xs"
+                        : "bg-surface-container-low border-outline-variant/40 hover:bg-surface-container-high/60"
                     }`}
                   >
-                    <span className="block text-xs font-bold">{chip.label}</span>
-                    <span
-                      className={`block text-[10px] ${
-                        isActive ? "text-on-primary/70" : "text-on-surface-variant/70"
-                      }`}
-                    >
-                      {chip.sub}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      {/* Left: Checkbox, Icon, Title and Price tag */}
+                      <div
+                        className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
+                        onClick={() => handleToggleSupply(supply.id)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSupply(supply.id)}
+                          className="rounded text-primary focus:ring-primary h-4 w-4 accent-secondary cursor-pointer shrink-0"
+                        />
+                        <div className="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary shrink-0">
+                          <span className="material-symbols-outlined text-lg">{supply.icon}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-xs sm:text-sm text-on-surface">
+                              {supply.title}
+                            </span>
+                            <span className="bg-secondary/15 text-secondary font-extrabold text-[11px] px-2 py-0.5 rounded-full shrink-0">
+                              ₹{supply.price}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-tertiary block font-medium truncate">
+                            {supply.gujaratiTitle}
+                          </span>
+                        </div>
+                      </div>
 
-            {/* Custom Weight Stepper/Input */}
-            {weightOption === "custom" && (
-              <div className="mt-2.5 p-3 rounded-lg bg-surface-container-low border border-outline-variant/50 flex items-center justify-between gap-3">
-                <div className="text-xs font-medium text-on-surface">
-                  Enter Custom Weight (કિલો):
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = parseFloat(customKg) || 1;
-                      setCustomKg(String(Math.max(1, cur - 1)));
-                    }}
-                    className="w-8 h-8 rounded-md bg-surface-container-high hover:bg-surface-container-highest font-bold text-sm flex items-center justify-center cursor-pointer border border-outline-variant/40"
-                  >
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    min="0.5"
-                    step="0.5"
-                    value={customKg}
-                    onChange={(e) => setCustomKg(e.target.value)}
-                    className="w-20 bg-surface border border-outline-variant/60 rounded-md py-1 px-2 text-center text-sm font-bold text-primary focus:outline-hidden"
-                  />
-                  <span className="text-xs font-semibold text-on-surface-variant">kg</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = parseFloat(customKg) || 1;
-                      setCustomKg(String(cur + 1));
-                    }}
-                    className="w-8 h-8 rounded-md bg-surface-container-high hover:bg-surface-container-highest font-bold text-sm flex items-center justify-center cursor-pointer border border-outline-variant/40"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+                      {/* Right: Quantity Stepper & Price Calculation */}
+                      {isSelected ? (
+                        <div className="flex items-center justify-between sm:justify-end gap-3 pl-7 sm:pl-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-outline-variant/30">
+                          <div className="flex items-center border border-outline-variant/60 rounded-lg bg-surface overflow-hidden shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQtyChange(supply.id, qty - 1);
+                              }}
+                              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center font-bold text-base text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer select-none"
+                              aria-label={`Decrease ${supply.title} quantity`}
+                            >
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              max="999"
+                              value={qty}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => handleQtyInput(supply.id, e.target.value)}
+                              className="w-10 sm:w-12 text-center text-xs sm:text-sm font-bold text-primary focus:outline-hidden py-1 border-x border-outline-variant/30"
+                            />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQtyChange(supply.id, qty + 1);
+                              }}
+                              className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center font-bold text-base text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer select-none"
+                              aria-label={`Increase ${supply.title} quantity`}
+                            >
+                              +
+                            </button>
+                          </div>
 
-          {/* Section 4: Cutting Preference */}
-          <div className="space-y-2 pt-1 border-t border-outline-variant/20">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 pt-2">
-              <span className="material-symbols-outlined text-base text-secondary">content_cut</span>
-              4. Cutting Preference (કટિંગ પસંદગી)
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {[
-                { id: "machine", label: "Machine Cut (મશીન)", icon: "precision_manufacturing" },
-                { id: "sarota", label: "Suda Cut (સૂડી)", icon: "content_cut" },
-                { id: "whole", label: "Whole nuts(આખી સોપારી)", icon: "circle" },
-              ].map((cut) => {
-                const isActive = cuttingType === cut.id;
-                return (
-                  <button
-                    key={cut.id}
-                    type="button"
-                    onClick={() => setCuttingType(cut.id)}
-                    className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition-all cursor-pointer ${
-                      isActive
-                        ? "bg-secondary/10 border-secondary text-secondary font-bold ring-1 ring-secondary"
-                        : "bg-surface-container-low border-outline-variant/40 text-on-surface hover:bg-surface-container-high"
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-lg">{cut.icon}</span>
-                    <span className="text-xs font-semibold">{cut.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Section 5: Additional Supplies Checkboxes */}
-          <div className="space-y-2 pt-1 border-t border-outline-variant/20">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 pt-2">
-              <span className="material-symbols-outlined text-base text-secondary">add_shopping_cart</span>
-              5. Also Need Paan Supplies? (અન્ય સામગ્રી)
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {INVENTORY_ITEMS.map((item) => {
-                const isChecked = selectedSupplies.includes(item.title);
-                return (
-                  <label
-                    key={item.title}
-                    className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
-                      isChecked
-                        ? "bg-primary/5 border-primary font-semibold text-primary"
-                        : "bg-surface-container-low border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-high"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => handleSupplyToggle(item.title)}
-                      className="rounded text-primary focus:ring-primary h-3.5 w-3.5 accent-primary"
-                    />
-                    <span className="truncate">{item.title}</span>
-                  </label>
+                          <div className="text-right min-w-[70px]">
+                            <span className="text-xs sm:text-sm font-extrabold text-secondary block">
+                              ₹{itemSubtotal.toLocaleString("en-IN")}
+                            </span>
+                            <span className="text-[10px] text-on-surface-variant block">
+                              {qty} × ₹{supply.price}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSupply(supply.id)}
+                          className="self-end sm:self-center text-xs font-semibold text-secondary hover:text-white hover:bg-secondary border border-secondary/40 hover:border-secondary px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
+                        >
+                          + Add (ઉમેરો)
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -521,7 +773,7 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
             </label>
             <input
               type="text"
-              placeholder="e.g. Urgent delivery needed, specific bag size, or tobacco details..."
+              placeholder="e.g. Urgent delivery needed, tobacco cutting preference, or specific notes..."
               value={specialNotes}
               onChange={(e) => setSpecialNotes(e.target.value)}
               className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg px-3 py-2 text-xs sm:text-sm text-on-surface focus:outline-hidden focus:border-secondary"
@@ -529,40 +781,90 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
           </div>
 
           {/* Section 7: Live Automatic Calculated Price Card */}
-          <div className="bg-gradient-to-br from-primary to-primary-container text-white p-4 rounded-xl shadow-md border border-tertiary-container/30">
-            <div className="flex items-center justify-between text-xs text-on-primary/80 pb-2 border-b border-white/10">
-              <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-tertiary-container text-base">
-                  calculate
+          <div className="bg-gradient-to-br from-primary via-primary-container to-[#0e3b2b] text-white p-4 sm:p-5 rounded-2xl shadow-lg border border-tertiary-container/30 space-y-3">
+            <div className="flex items-center justify-between text-xs text-on-primary/80 pb-2.5 border-b border-white/15">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-tertiary-container text-base">
+                    calculate
+                  </span>
+                </div>
+                <span className="font-bold text-white text-sm">
+                  Live Bill &amp; Order Total (કુલ હિસાબ)
                 </span>
-                <span className="font-semibold text-white">Live Price Calculation</span>
               </div>
-              <span className="bg-white/15 px-2 py-0.5 rounded text-[11px] font-medium">
-                Rate: ₹{pricePerKg}/kg
+              <span className="bg-tertiary-container/20 text-tertiary-container border border-tertiary-container/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                Auto-Calculated
               </span>
             </div>
 
-            <div className="mt-2.5 flex items-baseline justify-between gap-2">
+            {/* Itemized Order Breakdown */}
+            <div className="space-y-2 py-1 text-xs sm:text-sm">
+              {hasSupari && (
+                <div className="flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/10">
+                  <div>
+                    <span className="font-semibold text-white block">
+                      {currentProduct.name} ({currentProduct.gujaratiName})
+                    </span>
+                    <span className="text-[11px] text-tertiary-container">
+                      {weightLabel} • ₹{pricePerKg}/kg
+                    </span>
+                  </div>
+                  <span className="font-bold text-base text-white">
+                    ₹{calculatedSupariPrice.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              )}
+
+              {selectedSuppliesList.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/10"
+                >
+                  <div>
+                    <span className="font-semibold text-white block">
+                      {item.title} ({item.gujaratiTitle})
+                    </span>
+                    <span className="text-[11px] text-tertiary-container">
+                      {item.qty} {item.unit} × ₹{item.price}
+                    </span>
+                  </div>
+                  <span className="font-bold text-base text-white">
+                    ₹{item.itemTotal.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              ))}
+
+              {!hasSupari && selectedSuppliesList.length === 0 && (
+                <div className="text-center py-3 text-white/70 text-xs italic bg-white/5 rounded-lg border border-dashed border-white/20">
+                  Select a Supari product or at least one Paan Supply item above.
+                </div>
+              )}
+            </div>
+
+            {/* Grand Total Summary */}
+            <div className="pt-2.5 border-t border-white/15 flex items-end justify-between gap-2">
               <div>
-                <span className="text-xs text-on-primary/80 block">
-                  {currentProduct.name} ({weightLabel})
+                <span className="text-[11px] uppercase tracking-wider text-tertiary-container font-bold block">
+                  Final Order Total (કુલ રકમ)
                 </span>
-                <span className="text-[11px] text-tertiary-container">
-                  ₹{pricePerKg} × {weightInKg} kg
+                <span className="text-xs text-white/80">
+                  {hasSupari ? `Supari (₹${calculatedSupariPrice.toLocaleString("en-IN")})` : ""}
+                  {hasSupari && selectedSuppliesList.length > 0 ? " + " : ""}
+                  {selectedSuppliesList.length > 0
+                    ? `Supplies (₹${suppliesTotalPrice.toLocaleString("en-IN")})`
+                    : ""}
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-xs uppercase tracking-wider text-tertiary-container font-semibold block">
-                  Total Estimated Amount
-                </span>
-                <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  ₹{calculatedTotalPrice.toLocaleString("en-IN")}
+                <span className="text-2xl sm:text-3xl font-extrabold text-[#55f28c] tracking-tight drop-shadow-xs">
+                  ₹{finalGrandTotal.toLocaleString("en-IN")}
                 </span>
               </div>
             </div>
 
-            <p className="text-[10px] text-on-primary/70 mt-2 italic">
-              * Automatic calculation based on 1 kg wholesale base rate. Final confirmation &amp; transport details on WhatsApp.
+            <p className="text-[10px] text-on-primary/70 italic pt-1">
+              * Wholesale rates directly from Rajkot Mandi. Final stock confirmation &amp; transport details on WhatsApp.
             </p>
           </div>
 
@@ -570,12 +872,15 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
           <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
             <button
               type="submit"
-              className="flex-1 bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold py-3.5 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
+              disabled={!hasSupari && selectedSuppliesList.length === 0}
+              className="flex-1 bg-[#25D366] hover:bg-[#20ba5a] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
             >
               <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">
                 chat
               </span>
-              <span>Send Order on WhatsApp • ₹{calculatedTotalPrice.toLocaleString("en-IN")}</span>
+              <span>
+                Send Order on WhatsApp • ₹{finalGrandTotal.toLocaleString("en-IN")}
+              </span>
             </button>
             <button
               type="button"
@@ -1047,24 +1352,53 @@ function ProductsSection({ onOpenOrder }) {
 // ------------------------------------------------------------------
 function InventoryItem({ item, onOpenOrder }) {
   return (
-    <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/20 soft-shadow hover:border-secondary/40 transition-colors">
-      <div className="flex items-center gap-3.5">
-        <div className="w-14 h-14 rounded-lg bg-surface-container-high flex items-center justify-center text-primary shrink-0">
-          <span className="material-symbols-outlined text-2xl">{item.icon}</span>
+    <div className="flex flex-col justify-between p-5 rounded-2xl bg-surface-container-lowest border border-outline-variant/20 soft-shadow hover:border-secondary/40 hover:shadow-md transition-all">
+      <div>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-primary shrink-0">
+            <span className="material-symbols-outlined text-2xl">{item.icon}</span>
+          </div>
+          <span className="bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1 rounded-full text-xs font-bold tracking-wide">
+            ₹{item.price} / {item.unit}
+          </span>
         </div>
-        <div>
-          <h4 className="font-title-md text-base text-on-surface font-bold">{item.title}</h4>
-          <p className="text-xs text-on-surface-variant mt-0.5">{item.subtitle}</p>
-        </div>
+
+        <h4 className="font-title-md text-base sm:text-lg text-on-surface font-bold leading-tight">
+          {item.title}
+        </h4>
+        <p className="text-xs font-semibold text-tertiary mt-0.5">
+          {item.gujaratiTitle}
+        </p>
+        <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
+          {item.subtitle}
+        </p>
       </div>
-      <button
-        type="button"
-        onClick={() => onOpenOrder()}
-        className="text-[#25D366] hover:bg-[#25D366]/10 p-2 rounded-lg transition-colors cursor-pointer"
-        title="Inquire on WhatsApp"
-      >
-        <span className="material-symbols-outlined text-2xl">chat</span>
-      </button>
+
+      <div className="pt-4 mt-4 border-t border-outline-variant/20 flex items-center justify-between gap-2">
+        <div>
+          <span className="block text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">
+            Wholesale Price
+          </span>
+          <span className="text-xl font-extrabold text-secondary">
+            ₹{item.price}
+            <span className="text-xs font-normal text-on-surface-variant ml-1">
+              /{item.unit}
+            </span>
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onOpenOrder(null, item.id)}
+          className="bg-[#25D366] hover:bg-[#20ba5a] text-white px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs hover:shadow transition-all font-semibold text-xs cursor-pointer group"
+          title={`Order ${item.title} on WhatsApp`}
+        >
+          <span className="material-symbols-outlined text-white text-base transition-transform group-hover:scale-110">
+            chat
+          </span>
+          <span>Order / Calc</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -1076,27 +1410,28 @@ function InventorySection({ onOpenOrder }) {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b border-outline-variant/20 pb-4 gap-4">
           <div>
             <span className="text-xs font-bold text-tertiary uppercase tracking-wider block mb-1">
-              One-Stop Paan Shop Supplies
+              One-Stop Paan Shop Supplies • અન્ય સામગ્રી
             </span>
             <h2 className="font-headline-lg text-3xl sm:text-4xl text-primary font-bold">
-              Additional Shop Materials
+              Essential Paan Supplies &amp; Prices
             </h2>
-            <p className="text-base text-on-surface-variant mt-1">
-              Complete your wholesale order with our essential paan shop materials and tobacco supplies.
+            <p className="text-base text-on-surface-variant mt-1 max-w-2xl">
+              138 Tobacco, Edible Limestone (Chuna), Packaging Plastics, and Elastic Rubber Bands with live instant price calculation.
             </p>
           </div>
           <button
             type="button"
-            onClick={() => onOpenOrder()}
-            className="bg-primary text-on-primary hover:bg-primary-container px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer shrink-0"
+            onClick={() => onOpenOrder(null, "tobacco-138")}
+            className="bg-primary hover:bg-primary-container text-on-primary px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer shrink-0 shadow-xs flex items-center gap-2"
           >
-            Inquire Supplies
+            <span className="material-symbols-outlined text-lg">shopping_cart</span>
+            <span>Order Paan Supplies</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {INVENTORY_ITEMS.map((item) => (
-            <InventoryItem key={item.title} item={item} onOpenOrder={onOpenOrder} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {PAAN_SUPPLIES.map((item) => (
+            <InventoryItem key={item.id} item={item} onOpenOrder={onOpenOrder} />
           ))}
         </div>
       </div>
@@ -1287,9 +1622,11 @@ function Footer({ onOpenOrder }) {
 export default function HariOmPaanApp() {
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [modalInitialProduct, setModalInitialProduct] = useState(null);
+  const [modalInitialSupplyId, setModalInitialSupplyId] = useState(null);
 
-  const handleOpenOrder = (product = null) => {
+  const handleOpenOrder = (product = null, supplyId = null) => {
     setModalInitialProduct(product);
+    setModalInitialSupplyId(supplyId);
     setIsOrderModalOpen(true);
   };
 
@@ -1318,10 +1655,11 @@ export default function HariOmPaanApp() {
       {/* Interactive WhatsApp Order & Price Calculation Modal */}
       {isOrderModalOpen && (
         <WhatsAppOrderModal
-          key={modalInitialProduct?.id || "default-modal"}
+          key={`${modalInitialProduct?.id || "product"}-${modalInitialSupplyId || "supply"}`}
           isOpen={isOrderModalOpen}
           onClose={handleCloseOrder}
           initialProduct={modalInitialProduct}
+          initialSupplyId={modalInitialSupplyId}
         />
       )}
     </div>
