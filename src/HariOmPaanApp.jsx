@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const WHATSAPP_NUMBER = "919879333913"; // Jayeshbhai Sapariya
+const WHATSAPP_NUMBER = "919104830377"; // Kano
 
 const NAV_LINKS = [
   { label: "Products", href: "#products" },
@@ -459,9 +459,9 @@ function WhatsAppOrderModal({ isOpen, onClose, initialProduct = null }) {
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {[
-                { id: "machine", label: "Machine Cut (સંચા)", icon: "precision_manufacturing" },
-                { id: "sarota", label: "Sarota Cut (સૂડી)", icon: "content_cut" },
-                { id: "whole", label: "Whole (આખી સોપારી)", icon: "circle" },
+                { id: "machine", label: "Machine Cut (મશીન)", icon: "precision_manufacturing" },
+                { id: "sarota", label: "Suda Cut (સૂડી)", icon: "content_cut" },
+                { id: "whole", label: "Whole nuts(આખી સોપારી)", icon: "circle" },
               ].map((cut) => {
                 const isActive = cuttingType === cut.id;
                 return (
@@ -766,7 +766,7 @@ function HeroSection({ onOpenOrder }) {
             <strong className="text-primary font-semibold">Juni Moti</strong>,{" "}
             <strong className="text-primary font-semibold">Juni Moro</strong>, and{" "}
             <strong className="text-primary font-semibold">Juni Sekal</strong>.
-            Available in whole nuts, precision machine cutting, and traditional sarota
+            Available in whole nuts, precision machine cutting, and traditional suda
             cutting tailored for paan shops across Gujarat.
           </p>
 
@@ -794,7 +794,7 @@ function HeroSection({ onOpenOrder }) {
               </span>
               <div>
                 <span className="font-bold text-xs text-on-surface block">Custom Cut</span>
-                <span className="text-[11px] text-on-surface-variant">Sancha &amp; Sudi</span>
+                <span className="text-[11px] text-on-surface-variant">Machine &amp; Sudi</span>
               </div>
             </div>
 
